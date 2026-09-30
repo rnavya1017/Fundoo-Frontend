@@ -1,0 +1,20 @@
+<main class="signup-page">
+  <section class="signup-card">
+    <div class="google-wordmark" aria-label="Google"><span class="google-blue">G</span><span class="google-red">o</span><span class="google-yellow">o</span><span class="google-blue">g</span><span class="google-green">l</span><span class="google-red">e</span></div>
+    <div class="signup-layout">
+      <div><h1>Create your account</h1><p class="subtitle">Capture ideas and keep life organized.</p>
+        <form [formGroup]="form" (ngSubmit)="signup()" novalidate>
+          <div class="name-row"><label>First name<input formControlName="firstName" placeholder="First name">@if ((submitted || form.controls.firstName.touched) && form.controls.firstName.hasError('required')) { <small class="error">First name is required.</small> }</label><label>Last name<input formControlName="lastName" placeholder="Last name">@if ((submitted || form.controls.lastName.touched) && form.controls.lastName.hasError('required')) { <small class="error">Last name is required.</small> }</label></div>
+          <label>Email address<input type="email" formControlName="email" placeholder="you@example.com">@if ((submitted || form.controls.email.touched) && form.controls.email.hasError('required')) { <small class="error">Email is required.</small> } @else if ((submitted || form.controls.email.touched) && form.controls.email.hasError('email')) { <small class="error">Enter a valid email address.</small> }</label>
+          <label>Password<div class="password-field"><input [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="8+ characters"><button type="button" class="text-button" (click)="showPassword = !showPassword">{{ showPassword ? 'Hide' : 'Show' }}</button></div>@if ((submitted || form.controls.password.touched) && form.controls.password.hasError('required')) { <small class="error">Password is required.</small> } @else if ((submitted || form.controls.password.touched) && form.controls.password.invalid) { <small class="error">Use 8+ characters with a letter, number, and symbol.</small> }</label>
+          <label>Confirm password<input [type]="showPassword ? 'text' : 'password'" formControlName="confirmPassword" placeholder="Repeat your password">@if ((submitted || form.controls.confirmPassword.touched) && form.controls.confirmPassword.hasError('required')) { <small class="error">Confirm your password.</small> } @else if ((submitted || form.controls.confirmPassword.touched) && form.hasError('mismatch')) { <small class="error">Passwords do not match.</small> }</label>
+          @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+          @if (success()) { <p class="success" role="status">{{ success() }}</p> }
+          <button class="primary-button" type="submit" [disabled]="loading()">{{ loading() ? 'Creating account...' : 'Create account' }}</button>
+        </form>
+        <p class="switch-copy">Already have an account? <a routerLink="/login">Sign in</a></p>
+      </div>
+      <aside><div class="note-illustration">✦</div><strong>Make space for what matters.</strong><p>Your notes, lists, and bright ideas in one calm place.</p></aside>
+    </div>
+  </section>
+</main>
