@@ -1,0 +1,952 @@
+<div class="notes-shell">
+  <header class="topbar">
+    <button
+      class="icon-button"
+      type="button"
+      aria-label="Toggle navigation"
+      (click)="toggleSidebar()"
+    >
+      ☰
+    </button>
+
+    <div class="keep-brand">
+      <span class="keep-logo">●</span>
+      <span>Fundoo Notes</span>
+    </div>
+
+    <label class="search">
+      <span>⌕</span>
+      <input
+        #searchInput
+        aria-label="Search notes"
+        placeholder="Search"
+        (input)="setSearch(searchInput.value)"
+      />
+    </label>
+
+    <div class="top-actions">
+      <button class="icon-button" aria-label="Refresh notes" (click)="refresh()">↻</button>
+
+      <div class="profile-wrap">
+        <button
+          class="avatar"
+          aria-label="Open profile"
+          (click)="profileOpen.update((open) => !open)"
+        >
+          {{ user()?.firstName?.charAt(0) || 'R' }}
+        </button>
+
+        @if (profileOpen()) {
+          <section class="profile-menu" role="dialog" aria-label="Profile details">
+            <div class="profile-avatar">
+              {{ user()?.firstName?.charAt(0) || 'R' }}
+            </div>
+
+            <strong> {{ user()?.firstName }} {{ user()?.lastName }} </strong>
+
+            <span>{{ user()?.email }}</span>
+
+            <button class="logout-button" type="button" (click)="logout()">Log out</button>
+          </section>
+        }
+      </div>
+    </div>
+  </header>
+
+  <div class="workspace" [class.sidebar-closed]="!sidebarOpen()">
+    <aside class="sidebar">
+      <button
+        class="nav-item"
+        [class.active]="section() === 'all' && !activeLabel()"
+        (click)="navigate('all')"
+      >
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M9 21h6m-5 0v-2h4v2M6.8 10.5C6.8 6.9 9.1 4 12 4s5.2 2.9 5.2 6.5c0 2.1-.8 3.9-2.2 5.1-.6.5-1 1.2-1 1.9h-4c0-.7-.4-1.4-1-1.9-1.4-1.2-2.2-3-2.2-5.1Z"
+            />
+          </svg>
+        </span>
+
+        <span>Notes</span>
+      </button>
+
+      <button
+        class="nav-item"
+        [class.active]="section() === 'reminders'"
+        (click)="navigate('reminders')"
+      >
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 17h12l-1.2-1.8V10a4.8 4.8 0 0 0-9.6 0v5.2L6 17Zm4 3h4m-2-16V3" />
+          </svg>
+        </span>
+
+        <span>Reminders</span>
+      </button>
+
+      @if (labels().length) {
+        <div class="sidebar-label-list">
+          @for (label of labels(); track label) {
+            <button
+              type="button"
+              class="nav-item label-nav-item"
+              [class.active]="activeLabel() === label"
+              (click)="selectLabel(label)"
+            >
+              <span class="nav-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5h9l7 7-7 7H4V5Z" />
+                </svg>
+              </span>
+              <span>{{ label }}</span>
+            </button>
+          }
+        </div>
+      }
+
+      <button type="button" class="nav-item" (click)="openLabels()">
+        <span class="nav-icon">✎</span>
+        <span>Edit labels</span>
+      </button>
+
+      <button
+        class="nav-item"
+        [class.active]="section() === 'archive'"
+        (click)="navigate('archive')"
+      >
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 5h16v14H4zM4 8h16m-8 3v5m0 0-2-2m2 2 2-2" />
+          </svg>
+        </span>
+
+        <span>Archive</span>
+      </button>
+
+      <button class="nav-item" [class.active]="section() === 'trash'" (click)="navigate('trash')">
+        <span class="nav-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 7h12m-9 0V4h6v3m-8 0 1 14h8l1-14M10 10v5m4-5v5" />
+          </svg>
+        </span>
+
+        <span>Trash</span>
+      </button>
+    </aside>
+    <main class="notes-area">
+      @if (store.error()) {
+        <div class="error-banner" role="alert">
+          {{ store.error() }}
+
+          <button type="button" (click)="store.error.set('')">×</button>
+        </div>
+      }
+      <div class="filter-toolbar">
+        <button
+          type="button"
+          class="filter-toggle-button"
+          [class.active]="filtersOpen()"
+          (click)="filtersOpen() ? closeFilters() : openFilters()"
+          aria-label="Filter notes"
+          [attr.aria-expanded]="filtersOpen()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16M7 12h10m-7 6h4" />
+          </svg>
+          <span>Filter</span>
+        </button>
+
+        @if (hasActiveFilters()) {
+          <span class="filter-active-text">Filters applied</span>
+        }
+      </div>
+
+      @if (filtersOpen()) {
+        <section class="filters-panel" aria-label="Note filters">
+          <div class="filter-panel-heading">
+            <strong>Filter by</strong>
+            <button
+              type="button"
+              class="filter-close-button"
+              (click)="closeFilters()"
+              aria-label="Close filters"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="filter-options">
+            <div class="filter-group">
+              <label for="pinnedFilter">Pinned</label>
+              <select
+                id="pinnedFilter"
+                [value]="draftPinnedFilter()"
+                (change)="setPinnedFilter($any($event.target).value)"
+              >
+                <option value="all">All</option>
+                <option value="pinned">Pinned</option>
+                <option value="unpinned">Unpinned</option>
+              </select>
+            </div>
+
+            <div class="filter-group color-filter-group">
+              <label>Color</label>
+
+              <div class="color-filter-options">
+                <!-- All colors -->
+                <button
+                  type="button"
+                  class="color-filter-option all-color-option"
+                  [class.selected]="draftColorFilter() === ''"
+                  title="All colors"
+                  (click)="setColorFilter('')"
+                >
+                  <span class="all-color-circle">✓</span>
+                </button>
+
+                <!-- Red -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#f28b82'"
+                  title="Red"
+                  (click)="setColorFilter('#f28b82')"
+                >
+                  <span class="color-circle red"></span>
+                </button>
+
+                <!-- Orange -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#fbbc04'"
+                  title="Orange"
+                  (click)="setColorFilter('#fbbc04')"
+                >
+                  <span class="color-circle orange"></span>
+                </button>
+
+                <!-- Yellow -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#fff475'"
+                  title="Yellow"
+                  (click)="setColorFilter('#fff475')"
+                >
+                  <span class="color-circle yellow"></span>
+                </button>
+
+                <!-- Green -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#ccff90'"
+                  title="Green"
+                  (click)="setColorFilter('#ccff90')"
+                >
+                  <span class="color-circle green"></span>
+                </button>
+
+                <!-- Teal -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#a7ffeb'"
+                  title="Teal"
+                  (click)="setColorFilter('#a7ffeb')"
+                >
+                  <span class="color-circle teal"></span>
+                </button>
+
+                <!-- Blue -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#cbf0f8'"
+                  title="Blue"
+                  (click)="setColorFilter('#cbf0f8')"
+                >
+                  <span class="color-circle blue"></span>
+                </button>
+
+                <!-- Purple -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#d7aefb'"
+                  title="Purple"
+                  (click)="setColorFilter('#d7aefb')"
+                >
+                  <span class="color-circle purple"></span>
+                </button>
+
+                <!-- Pink -->
+                <button
+                  type="button"
+                  class="color-filter-option"
+                  [class.selected]="draftColorFilter() === '#fdcfe8'"
+                  title="Pink"
+                  (click)="setColorFilter('#fdcfe8')"
+                >
+                  <span class="color-circle pink"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <label for="dateFilter">Created date</label>
+              <input
+                id="dateFilter"
+                type="date"
+                [value]="draftDateFilter()"
+                (change)="setDateFilter($any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <div class="filter-panel-actions">
+            <button type="button" class="clear-filters-button" (click)="clearFilters()">
+              Clear filters
+            </button>
+            <button type="button" class="apply-filters-button" (click)="applyFilters()">
+              Apply filters
+            </button>
+          </div>
+        </section>
+      }
+
+      @if (section() === 'all') {
+        <section
+          class="composer"
+          [class.expanded]="composerOpen()"
+          [style.background-color]="selectedColor() || '#ffffff'"
+        >
+          <form [formGroup]="form" (ngSubmit)="saveNote()">
+            <div class="composer-heading">
+              <input
+                class="composer-title"
+                formControlName="title"
+                placeholder="Title"
+                maxlength="80"
+                [attr.aria-label]="editingId() ? 'Note title' : 'Title'"
+                [hidden]="!composerOpen()"
+              />
+
+              @if (
+                (form.controls.title.touched || form.controls.title.dirty) &&
+                form.controls.title.hasError('required')
+              ) {
+                <small class="field-error"> Title is required. </small>
+              }
+
+              <button
+                type="button"
+                class="composer-pin"
+                [class.active]="composerPinned()"
+                [attr.aria-label]="composerPinned() ? 'Unpin note' : 'Pin note'"
+                [title]="composerPinned() ? 'Unpin note' : 'Pin note'"
+                [hidden]="!composerOpen()"
+                (click)="toggleComposerPinned()"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 4h8l-1 5 3 3v2H6v-2l3-3-1-5Zm4 10v6" />
+                </svg>
+              </button>
+            </div>
+
+            <textarea
+              formControlName="content"
+              placeholder="Take a note..."
+              rows="1"
+              maxlength="2000"
+              (focus)="composerOpen.set(true)"
+              aria-label="Note content"
+            ></textarea>
+
+            @if (
+              (form.controls.content.touched || form.controls.content.dirty) &&
+              form.controls.content.hasError('required')
+            ) {
+              <small class="field-error"> Content is required. </small>
+            }
+
+            @if (composerOpen()) {
+              @if (reminderOpen()) {
+                <div class="reminder-chip">
+                  ✓
+                  <span>
+                    {{ reminderDate() + ', ' + reminderTime() }}
+                  </span>
+                </div>
+              }
+              @if (pendingAttachment()) {
+                <div class="pending-attachment">
+                  <span> 📎 {{ pendingAttachment()?.name }} </span>
+
+                  <button
+                    type="button"
+                    aria-label="Remove selected attachment"
+                    title="Remove attachment"
+                    (click)="pendingAttachment.set(null)"
+                  >
+                    ×
+                  </button>
+                </div>
+              }
+
+              <div class="composer-options">
+                <div class="color-picker">
+                  <span class="option-title"> Color </span>
+
+                  <div class="color-options">
+                    @for (color of colorOptions; track color.name) {
+                      <button
+                        type="button"
+                        class="color-option"
+                        [class.selected]="isColorSelected(color.value)"
+                        [style.background-color]="color.value || '#fffef5'"
+                        [attr.aria-label]="color.name"
+                        [title]="color.name"
+                        (click)="setColor(color.value)"
+                      >
+                        @if (isColorSelected(color.value)) {
+                          ✓
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
+                @if (labels().length) {
+                  <div class="note-label-picker">
+                    <span class="option-title"> Labels </span>
+
+                    <div class="note-label-options">
+                      @for (label of labels(); track label) {
+                        <button
+                          type="button"
+                          class="label-option"
+                          [class.selected]="isLabelSelected(label)"
+                          (click)="toggleLabel(label)"
+                        >
+                          {{ label }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+              <div class="composer-footer">
+                <div class="composer-tools">
+                  <button
+                    type="button"
+                    aria-label="Add reminder"
+                    title="Reminder"
+                    (click)="openReminder()"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 17h12l-1.2-1.8V10a4.8 4.8 0 0 0-9.6 0v5.2L6 17Zm4 3h4m-2-16V3" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Archive note"
+                    title="Archive"
+                    (click)="
+                      editingId() && archive(store.notes().find((note) => note.id === editingId())!)
+                    "
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 5h16v14H4zM4 8h16m-8 3v5m0 0-2-2m2 2 2-2" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="composer-pin-bottom"
+                    [class.active]="composerPinned()"
+                    [attr.aria-label]="composerPinned() ? 'Unpin note' : 'Pin note'"
+                    (click)="toggleComposerPinned()"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M8 4h8l-1 5 3 3v2H6v-2l3-3-1-5Zm4 10v6" />
+                    </svg>
+                  </button>
+                  <label
+                    class="composer-attachment"
+                    title="Add attachment"
+                    aria-label="Add attachment"
+                  >
+                    <span>+</span>
+
+                    <input type="file" hidden (change)="onAttachmentSelected($event)" />
+                  </label>
+                </div>
+
+                <button type="button" class="close-composer" (click)="closeComposer()">
+                  Close
+                </button>
+              </div>
+            } @else {
+              <div class="composer-prompts">
+                <button type="button" aria-label="Create checklist" (click)="openCreate()">
+                  ☑
+                </button>
+
+                <button type="button" aria-label="Create drawing" (click)="openCreate()">⌕</button>
+              </div>
+            }
+          </form>
+        </section>
+      }
+      @if (section() === 'trash' && store.notes().some((note) => note.trashed)) {
+        <button class="empty-trash" type="button" (click)="emptyTrash()">Empty trash</button>
+      }
+      @if (loading()) {
+        <div class="loading" role="status">Saving...</div>
+      } @else if (visibleNotes().length) {
+        <div class="notes-grid">
+          @for (note of visibleNotes(); track note.id) {
+            <article
+              class="note-card"
+              [class.pinned-note]="note.pinned"
+              [style.background-color]="note.color || '#fffef5'"
+            >
+              <button
+                class="pin-button"
+                type="button"
+                [attr.aria-label]="note.pinned ? 'Unpin note' : 'Pin note'"
+                [title]="note.pinned ? 'Unpin note' : 'Pin note'"
+                (click)="togglePinned(note)"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 4h8l-1 5 3 3v2H6v-2l3-3-1-5Zm4 10v6" />
+                </svg>
+              </button>
+
+              @if (section() === 'all') {
+                <h2>{{ note.title }}</h2>
+              }
+
+              <p>{{ note.content }}</p>
+              @if (note.labels?.length) {
+                <div class="note-labels">
+                  @for (label of note.labels; track label.id) {
+                    <span class="note-label">
+                      {{ label.name }}
+                    </span>
+                  }
+                </div>
+              }
+              @if (note.reminderAt) {
+                <span class="note-reminder"> ✓ {{ formatReminder(note.reminderAt) }} </span>
+              }
+              @if (attachments()[note.id]?.length) {
+                <button type="button" class="note-attachment" (click)="openAttachments(note)">
+                  <span class="attachment-icon">+</span>
+                  <span>
+                    {{ attachments()[note.id].length }}
+                    {{ attachments()[note.id].length === 1 ? 'attachment' : 'attachments' }}
+                  </span>
+                </button>
+              }
+
+              <footer>
+                <div class="note-dates">
+                  <span>Created {{ formatDate(note.createdAt) }}</span>
+                  <span>Updated {{ formatDate(note.updatedAt) }}</span>
+                </div>
+
+                <div class="card-actions">
+                  @if (section() === 'all') {
+                    <button type="button" (click)="openEdit(note)">Edit</button>
+
+                    <button type="button" (click)="openReminder(note)">Reminder</button>
+
+                    <button type="button" (click)="archive(note)">Archive</button>
+
+                    <button type="button" (click)="trash(note)">Trash</button>
+                  }
+
+                  @if (section() === 'reminders') {
+                    <button type="button" (click)="openReminder(note)">Edit reminder</button>
+
+                    <button type="button" class="danger" (click)="removeReminderForNote(note)">
+                      Remove reminder
+                    </button>
+                  }
+
+                  @if (section() === 'archive') {
+                    <button type="button" (click)="unarchive(note)">Unarchive</button>
+
+                    <button type="button" (click)="trash(note)">Trash</button>
+                  }
+
+                  @if (section() === 'trash') {
+                    <button type="button" (click)="restore(note)">Restore</button>
+
+                    <button type="button" class="danger" (click)="permanentlyDelete(note)">
+                      Delete permanently
+                    </button>
+                  }
+                </div>
+              </footer>
+            </article>
+          }
+        </div>
+
+        <!-- PAGINATION -->
+        @if (displayTotalPages() > 1) {
+          <div class="pagination">
+            <button
+              type="button"
+              class="pagination-button"
+              [disabled]="currentPage() === 0"
+              (click)="previousPage()"
+            >
+              Previous
+            </button>
+
+            <span class="page-info">
+              Page {{ currentPage() + 1 }} of {{ displayTotalPages() }}
+            </span>
+
+            <button
+              type="button"
+              class="pagination-button"
+              [disabled]="currentPage() === displayTotalPages() - 1"
+              (click)="nextPage()"
+            >
+              Next
+            </button>
+          </div>
+        }
+      } @else {
+        <div class="empty-state">
+          <div class="empty-icon">
+            {{ section() === 'reminders' ? '♧' : searchText() ? '⌕' : '✦' }}
+          </div>
+          <h2>
+            {{
+              section() === 'reminders'
+                ? 'Notes with upcoming reminders appear here'
+                : searchText()
+                  ? 'No matching notes found.'
+                  : 'Notes you add appear here'
+            }}
+          </h2>
+        </div>
+      }
+      @if (attachmentOpen() && attachmentNote(); as note) {
+        <div class="attachment-overlay" (click)="closeAttachments()">
+          <section
+            class="attachment-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attachment-title"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="attachment-dialog-header">
+              <div>
+                <h2 id="attachment-title">Attachments</h2>
+
+                <p>
+                  {{ note.title }}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                class="attachment-close"
+                aria-label="Close attachments"
+                (click)="closeAttachments()"
+              >
+                ×
+              </button>
+            </div>
+
+            @if (attachments()[note.id]?.length) {
+              <div class="attachment-list">
+                @for (attachment of attachments()[note.id]; track attachment.id) {
+                  <div class="attachment-item">
+                    <div class="attachment-file">
+                      <div class="attachment-file-icon">+</div>
+
+                      <div class="attachment-info">
+                        <span class="attachment-name">
+                          {{ attachment.fileName }}
+                        </span>
+
+                        <span class="attachment-size">
+                          {{ formatFileSize(attachment.fileSize) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="attachment-delete"
+                      (click)="deleteAttachment(note, attachment)"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="attachment-empty">No attachments found.</div>
+            }
+          </section>
+        </div>
+      }
+      @if (pinNotice()) {
+        <div class="pin-notice" role="status">
+          {{ pinNotice() }}
+        </div>
+      }
+    </main>
+  </div>
+  @if (labelsOpen()) {
+    <div class="labels-modal-backdrop" (click)="closeLabels()">
+      <section
+        class="labels-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="labels-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="labels-modal-header">
+          <h2 id="labels-title">Edit labels</h2>
+        </div>
+
+        <div class="create-label-row">
+          <button
+            type="button"
+            class="label-action-button"
+            aria-label="Cancel"
+            (click)="newLabel.set('')"
+          >
+            ×
+          </button>
+
+          <input
+            #labelInput
+            type="text"
+            placeholder="Create new label"
+            [value]="newLabel()"
+            (input)="setNewLabel(labelInput.value)"
+            (keyup.enter)="addLabel()"
+          />
+
+          <button
+            type="button"
+            class="label-action-button"
+            aria-label="Create label"
+            (click)="addLabel()"
+          >
+            ✓
+          </button>
+        </div>
+
+        <div class="modal-label-list">
+          @for (label of labels(); track label) {
+            <div class="modal-label-row">
+              @if (editingLabelId() === labelIds()[label]) {
+                <input
+                  #editLabelInput
+                  class="edit-label-input"
+                  [value]="editingLabelName()"
+                  (input)="setEditingLabelName(editLabelInput.value)"
+                  (keyup.enter)="saveLabelEdit(label)"
+                />
+
+                <button
+                  type="button"
+                  class="label-action-button"
+                  aria-label="Save label"
+                  (click)="saveLabelEdit(label)"
+                >
+                  ✓
+                </button>
+
+                <button
+                  type="button"
+                  class="label-action-button"
+                  aria-label="Cancel edit"
+                  (click)="cancelEditLabel()"
+                >
+                  ×
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  class="delete-label-button"
+                  aria-label="Delete label"
+                  title="Delete label"
+                  (click)="removeLabel(label)"
+                >
+                  🗑
+                </button>
+
+                <span class="modal-label-name">
+                  {{ label }}
+                </span>
+
+                <button
+                  type="button"
+                  class="edit-label-button"
+                  aria-label="Edit label"
+                  title="Edit label"
+                  (click)="startEditLabel(label)"
+                >
+                  ✎
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="labels-modal-footer">
+          <button type="button" class="done-label-button" (click)="closeLabels()">Done</button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (labelDeleteOpen()) {
+    <div class="label-delete-backdrop">
+      <section
+        class="label-delete-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="label-delete-title"
+      >
+        <div class="label-delete-content">
+          <h2 id="label-delete-title">Delete label?</h2>
+
+          <p>
+            We'll delete this label and remove it from all of your notes. Your notes won't be
+            deleted.
+          </p>
+        </div>
+
+        <div class="label-delete-actions">
+          <button
+            type="button"
+            class="label-delete-cancel"
+            (click)="cancelLabelDelete()"
+            [disabled]="labelDeleteLoading()"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="label-delete-confirm"
+            (click)="confirmLabelDelete()"
+            [disabled]="labelDeleteLoading()"
+          >
+            {{ labelDeleteLoading() ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (reminderOpen()) {
+    <div class="modal-backdrop" (click)="closeReminder()">
+      <section
+        class="reminder-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reminder-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="reminder-title">Pick date &amp; time</h2>
+
+        <label>
+          Date
+
+          <input
+            type="date"
+            [value]="reminderDate()"
+            (change)="setReminderDate($any($event.target).value)"
+          />
+        </label>
+
+        <label>
+          Time
+
+          <input
+            type="time"
+            [value]="reminderTime()"
+            (change)="setReminderTime($any($event.target).value)"
+          />
+        </label>
+
+        <div class="dialog-actions">
+          <button type="button" (click)="closeReminder()">Cancel</button>
+
+          <button type="button" (click)="saveReminder()">Save</button>
+        </div>
+      </section>
+    </div>
+  }
+  @if (emptyTrashConfirmationOpen()) {
+    <div class="confirmation-overlay">
+      <div
+        class="confirmation-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="empty-trash-title"
+      >
+        <h2 id="empty-trash-title">Empty trash?</h2>
+
+        <p>All notes in Trash will be permanently deleted.</p>
+
+        <div class="confirmation-actions">
+          <button type="button" class="confirmation-cancel" (click)="cancelEmptyTrash()">
+            Cancel
+          </button>
+
+          <button type="button" class="confirmation-confirm" (click)="confirmEmptyTrash()">
+            Empty Trash
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+  @if (permanentDeleteConfirmationOpen() && noteToDelete(); as note) {
+    <div class="confirmation-overlay">
+      <div
+        class="confirmation-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="permanent-delete-title"
+      >
+        <h2 id="permanent-delete-title">Delete note?</h2>
+
+        <p>
+          Are you sure you want to permanently delete
+          <strong>"{{ note.title }}"</strong>? This action cannot be undone.
+        </p>
+
+        <div class="confirmation-actions">
+          <button type="button" class="confirmation-cancel" (click)="cancelPermanentDelete()">
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="confirmation-confirm danger-confirm"
+            (click)="confirmPermanentDelete()"
+          >
+            Delete permanently
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
