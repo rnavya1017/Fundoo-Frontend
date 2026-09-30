@@ -896,45 +896,9 @@ git push -u origin main
 
 ---
 
-# 🚫 Files Not Committed
-
-Generated files and folders should not be committed to GitHub.
-
-Examples:
-
-```text
-node_modules/
-.angular/cache/
-dist/
-coverage/
-```
-
-These are already covered by `.gitignore`.
-
-After cloning the project, run:
-
-```bash
-npm install
-```
-
-to recreate `node_modules`.
-
 ---
 
-# 🔒 Security Notes
 
-Do not commit:
-
-* Passwords
-* JWT secrets
-* Database credentials
-* API secrets
-* Private keys
-* Environment-specific sensitive configuration
-
-Production API URLs and secrets should be managed using an appropriate environment/deployment configuration.
-
----
 
 # 👩‍💻 Author
 
