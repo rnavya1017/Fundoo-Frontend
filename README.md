@@ -412,7 +412,7 @@ src/app/core/config/api.config.ts
 Current configuration:
 
 ```typescript
-export const API_BASE_URL = 'http://localhost:8081/api';
+export const API_BASE_URL = 'http://localhost:8080/api';
 ```
 
 If the Spring Boot backend is running on another port, update this value.
